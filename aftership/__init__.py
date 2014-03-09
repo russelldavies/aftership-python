@@ -11,6 +11,8 @@ __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2014 Russell Davies'
 
 
+import json
+
 import requests
 
 API_VERSION = '3'
@@ -55,7 +57,7 @@ class Courier(object):
         Return a list of couriers supported by AfterShip along with their
         names, URLs and slugs.
         """
-        url = '{}{}'.format(config.base_url, cls.PATH)
+        url = '{}/{}'.format(config.base_url, cls.PATH.strip('/'))
         headers = headers or {}
         headers.update(config.headers)
         r = requests.get(url, headers=headers)
@@ -69,7 +71,8 @@ class Courier(object):
         tracking number format. User can limit number of matched couriers
         and change courier priority at courier settings.
         """
-        url = '{}{}/detect/{}'.format(config.base_url, cls.PATH, tracking_number)
+        url = '{}/{}/detect/{}'.format(config.base_url, cls.PATH.strip('/'),
+                tracking_number)
         headers = headers or {}
         headers.update(config.headers)
         r = requests.get(url, headers=headers)
@@ -79,3 +82,62 @@ class Courier(object):
 
 class Tracking(object):
     PATH = '/trackings'
+
+    @classmethod
+    def create(cls, tracking_number, headers=None, **kwargs):
+        url = '{}/{}'.format(config.base_url, cls.PATH.strip('/'))
+        headers = headers or {}
+        headers.update(config.headers)
+        payload = {
+            'tracking': {
+                'tracking_number': tracking_number,
+            }
+        }
+        payload['tracking'].update(**kwargs)
+        r = requests.post(url, headers=headers, data=json.dumps(payload))
+        return r.json().get('data')
+
+    @clasmethod
+    def _tracking(cls, http_method, headers=None, url_suffix=None, **kwargs):
+        headers = headers or {}
+        headers.update(config.headers)
+
+        if kwargs.get('tracking_number'):
+            # Tracking results of a single tracking.
+            try:
+                url = '{}/{}/{slug}/{tracking_number}'.format(config.base_url,
+                        cls.PATH.strip('/'), kwargs.pop('slug'),
+                        kwargs.pop('tracking_number'))
+                url = url + '/' + url_suffix if url_suffix else url
+            except KeyError as e:
+                e.message = "{} must be specified".format(e.args)
+        else:
+            # Tracking results of multiple trackings.
+            url = '{}/{}'.format(config.base_url, cls.PATH.strip('/'))
+
+        payload = {'tracking': kwargs}
+        r = http_method(url, headers=headers, data=json.dumps(payload))
+        return r.json().get('data')
+
+    @classmethod
+    def get(cls, headers=None, **kwargs):
+        return cls._tracking(requests.get, headers, **kwargs)
+
+    @classmethod
+    def update(cls, headers=None, **kwargs):
+        return cls._tracking(requests.put, headers, **kwargs)
+
+    @classmethod
+    def reactivate(cls, headers=None, **kwargs):
+        return cls._tracking(requets.post, headers, url_suffix='reactivate',
+                **kwargs)
+
+    @classmethod
+    def last_checkpoint(cls, tracking_number, slug, headers=None, **kwargs):
+        headers = headers or {}
+        headers.update(config.headers)
+        url = '{}/{}/{slug}/{tracking_number}'.format(config.base_url,
+                '/last_checkpoint', slug, tracking_number)
+        payload = {'tracking': kwargs}
+        r = requets.get(url, headers=headers, data=json.dumps(payload))
+        return r.json().get('data')
