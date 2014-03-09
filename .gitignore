@@ -1,0 +1,15 @@
+# Python
+*.pyc
+
+# vim files
+*.swp
+*.un~
+
+# virtualenv
+.venv
+
+# OS files
+.DS_Store
+Desktop.ini
+._*
+Thumbs.db
