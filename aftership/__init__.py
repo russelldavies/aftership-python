@@ -48,7 +48,23 @@ class Config(object):
 config = Config()
 
 
-class Courier(object):
+class Resource(object):
+    """
+    Generic API resource.
+    """
+    def __init__(self, headers=None, **kwargs):
+        self.headers = headers or {}
+        self.headers.update(config.headers)
+
+        self.url = '{base_url}/{path}'.format(base_url=config.base_url, path=self.PATH.strip('/'))
+
+    def get(self):
+        r = requests.get(self.url, headers=self.headers)
+        # TODO: verify is valid json
+        return r.json().get('data')
+
+
+class Courier(Resource):
     PATH = '/couriers'
 
     @classmethod
@@ -57,12 +73,8 @@ class Courier(object):
         Return a list of couriers supported by AfterShip along with their
         names, URLs and slugs.
         """
-        url = '{}/{}'.format(config.base_url, cls.PATH.strip('/'))
-        headers = headers or {}
-        headers.update(config.headers)
-        r = requests.get(url, headers=headers)
-        # TODO: verify is valid json
-        return r.json().get('data')
+        resource = Courier(headers)
+        return resource.get()
 
     @classmethod
     def detect(cls, tracking_number, headers=None):
@@ -71,13 +83,9 @@ class Courier(object):
         tracking number format. User can limit number of matched couriers
         and change courier priority at courier settings.
         """
-        url = '{}/{}/detect/{}'.format(config.base_url, cls.PATH.strip('/'),
-                tracking_number)
-        headers = headers or {}
-        headers.update(config.headers)
-        r = requests.get(url, headers=headers)
-        # TODO: error handling
-        return r.json().get('data')
+        resource = Courier(headers)
+        resource.url += '/detect/{}'.format(tracking_number)
+        return resource.get()
 
 
 class Tracking(object):
@@ -97,7 +105,7 @@ class Tracking(object):
         r = requests.post(url, headers=headers, data=json.dumps(payload))
         return r.json().get('data')
 
-    @clasmethod
+    @classmethod
     def _tracking(cls, http_method, headers=None, url_suffix=None, **kwargs):
         headers = headers or {}
         headers.update(config.headers)
